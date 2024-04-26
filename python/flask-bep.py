@@ -1,7 +1,10 @@
+#cd D:\Temp\projects\TTS
 #python bep.py
 #pip install Flask
 #pip install flask-mysqldb
 #pip install flask-cors
+#pip install Flask Flask-JWT-Extended
+#pip install Flask bcrypt
 # http://localhost:5000/status
 #Demo products
 
@@ -11,7 +14,20 @@ import json
 from flask import Flask, jsonify, send_file, request
 from flask_cors import CORS
 from flask_mysqldb import MySQL
+from flask_jwt_extended import JWTManager
+from flask_jwt_extended import create_access_token
+from flask_jwt_extended import jwt_required
+import bcrypt
 
+# Hash the password using bcrypt before inserting in DB
+def hash_password(password):
+    hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+    return hashed_password.decode('utf-8')
+
+# Verify the plain password against the password from DB
+def verify_password(plain_password, hashed_password):
+    return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+    
 app = Flask(__name__)
 
 # MySQL configurations
@@ -22,7 +38,8 @@ app.config['MYSQL_DB'] = 'db_cart'		# Change this to your MySQL database name
 app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
 
 mysql = MySQL(app)
-
+app.config['JWT_SECRET_KEY'] = 'your_secret_key'  # Change this to a random secret key
+jwt = JWTManager(app)
 CORS(app)  # This will enable CORS for all routes in your Flask application
 
 
@@ -35,6 +52,7 @@ def status():
         return jsonify({'status': "Error"})
 
 @app.route('/products')
+@jwt_required()
 def get_all_products():
     try:
         cur = mysql.connection.cursor()
@@ -57,6 +75,7 @@ def get_all_products():
         return jsonify({'error': str(e)})
 
 @app.route('/create', methods=['POST'])
+@jwt_required()
 def create_product():
     try:
         data = request.json
@@ -75,6 +94,7 @@ def create_product():
         return jsonify({'error': str(e)})
 
 @app.route('/delete', methods=['POST'])
+@jwt_required()
 def delete_product():
     try:
         data = request.get_json()
@@ -91,6 +111,7 @@ def delete_product():
         return jsonify({'error': str(e)})
         
 @app.route('/update', methods=['PUT'])
+@jwt_required()
 def update_product():
     try:
         id = request.json.get('id')
@@ -109,5 +130,25 @@ def update_product():
     except Exception as e:
         return jsonify({'error': str(e)})
         
+@app.route('/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    email = data.get('email')
+    password = data.get('password')
+    
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT password FROM users WHERE email = %s", (email,))
+    passwordDb = cur.fetchone()
+    cur.close()
+
+    if passwordDb:
+        if verify_password(password, passwordDb['password']):
+            access_token = create_access_token(identity=email)
+            return jsonify(token=access_token)
+        else:
+            return jsonify({'status': 'Invalid email or password.'})
+    else:
+        return jsonify({'status': 'Invalid email or password.'})
+
 if __name__ == '__main__':
     app.run(debug=True)

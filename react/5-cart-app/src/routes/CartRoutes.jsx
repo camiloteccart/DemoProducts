@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom"
 import { CatalogView } from "../components/CatalogView"
 import { CartView } from "../components/CartView"
 import { ProductsView } from "../components/ProductsView"
+import { UserLoginView } from "../components/UserLoginView"
 
 export const CartRoutes = ({cartItems, handlerAddProductCart, handlerDeleteProductCart}) => {
     return (<>
@@ -20,7 +21,8 @@ export const CartRoutes = ({cartItems, handlerAddProductCart, handlerDeleteProdu
                             </div>
                         )
                     )} />
-                    <Route path="/" element={<Navigate to={'/catalog'} />} />
+                    <Route path="userlogin" element={<UserLoginView />} />
+                    <Route path="/" element={<Navigate to={'/userlogin'} />} />
                     <Route path="products" element={<ProductsView />} />
                 </Routes>
     </>)
